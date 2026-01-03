@@ -160,40 +160,46 @@
             已有帳號？ <a href="auth.html">立即登入</a>
         </div>
     </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        document.getElementById('registerForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+        const supabaseUrl = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
         
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
             const user = document.getElementById('regUsername').value;
             const pass = document.getElementById('regPassword').value;
-            const confirmPass = document.getElementById('confirmPassword').value;
-            const statusMsg = document.getElementById('status-msg');
         
-            if (pass !== confirmPass) {
-                showMsg("兩次密碼輸入不符");
+            // 1. 註冊帳號 (Supabase Auth)
+            const { data, error: authError } = await supabase.auth.signUp({
+                email: user + "@gmail.com", // 帳號轉 Email 格式
+                password: pass,
+            });
+        
+            if (authError) {
+                alert("註冊失敗: " + authError.message);
                 return;
             }
         
-            // --- 建立您想要的 JSON 資料結構 ---
-            const userData = {
-                "Username": user,
-                "Password": pass,
-                "Last Login": new Date().toLocaleString() // 格式化時間
-            };
+            // 2. 寫入額外資料到 profiles 表格
+            const { error: dbError } = await supabase
+                .from('profiles')
+                .insert([
+                    { 
+                        id: data.user.id, 
+                        username: user, 
+                        last_login: new Date().toISOString(),
+                        extra_data: { "role": "member", "note": "來自 github.io" } 
+                    }
+                ]);
         
-            // --- 模擬「儲存檔案」至本地 ---
-            // 我們以帳號作為 Key，這樣可以儲存多個使用者
-            localStorage.setItem(`user_${user}`, JSON.stringify(userData));
-        
-            // 成功效果
-            const btn = document.querySelector('button');
-            btn.textContent = "註冊成功！";
-            btn.style.background = "#23d5ab";
-            
-            setTimeout(() => {
+            if (dbError) {
+                console.error("註冊失敗:", dbError);
+            } else {
+                alert("註冊成功！");
                 window.location.href = "auth.html";
-            }, 1200);
+            }
         });
 
         function showMsg(text) {

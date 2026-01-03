@@ -1,19 +1,44 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redirecting...</title>
-    <script type="text/javascript">
-        // 方法 A: 直接跳轉
-        // window.location.href = "auth.html";
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+    // 1. 初始化 (請確保 SB_KEY 是完整長度的那個)
+    const SB_URL = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
+    const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+    // 2. 判定登入狀態的主函數
+    async function checkLoginStatus() {
+        // 先檢查 LocalStorage 做初步判斷 (速度快)
+        const isLoggedIn = localStorage.getItem('isLoggedIn');
         
-        // 方法 B (推薦): 取代當前歷史紀錄
-        // 這樣使用者按「上一頁」時，不會又跳回來導致無限循環
-        window.location.replace("auth.html");
-    </script>
-</head>
-<body>
-    <p>正在跳轉至登入頁面...</p>
-</body>
-</html>
+        // 向 Supabase 伺服器確認 Session 是否真的有效
+        const { data: { session }, error } = await _supabase.auth.getSession();
+
+        if (!isLoggedIn || !session) {
+            // 如果沒登入或 Session 過期，踢回登入頁
+            console.log("未登入，跳轉中...");
+            window.location.href = "auth.html";
+        } else {
+            // 登入成功，可以取得使用者資訊
+            const userEmail = session.user.email;
+            const username = userEmail.split('@')[0]; // 把 @gmail.com 削掉
+            
+            console.log("歡迎回來:", username);
+            
+            // 如果你有個 ID 叫 'user-display' 的元素，可以顯示名字
+            if(document.getElementById('user-display')) {
+                document.getElementById('user-display').textContent = username;
+            }
+        }
+    }
+
+    // 3. 登出函數
+    async function handleLogout() {
+        await _supabase.auth.signOut();
+        localStorage.removeItem('isLoggedIn');
+        window.location.href = "auth.html";
+    }
+
+    // 執行檢查
+    checkLoginStatus();
+</script>

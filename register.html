@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幫戰數據分析 - 註冊</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- 基礎設定 --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* --- 背景與佈局 --- */
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 10s ease infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* --- 毛玻璃卡片容器 --- */
+        .register-container {
+            position: relative;
+            width: 350px;
+            padding: 40px 35px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .register-container:hover {
+            transform: translateY(-5px);
+        }
+
+        h2 {
+            color: #fff;
+            text-align: center;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        /* --- 輸入框樣式 --- */
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px 0;
+            font-size: 16px;
+            color: #fff;
+            border: none;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            background: transparent;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            border-bottom: 2px solid #fff;
+        }
+
+        /* --- 按鈕樣式 --- */
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #fff;
+            border: none;
+            border-radius: 30px;
+            color: #764ba2;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #f0f0f0;
+            transform: scale(1.02);
+        }
+
+        /* --- 切換連結 --- */
+        .footer-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .footer-link a {
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- 訊息提示 --- */
+        #status-msg {
+            color: #ffcccc;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 15px;
+            height: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="register-container">
+        <h2>建立帳號</h2>
+        <form id="registerForm">
+            <div class="input-group">
+                <input type="text" id="regUsername" placeholder="設定帳號" required autocomplete="off">
+            </div>
+            <div class="input-group">
+                <input type="password" id="regPassword" placeholder="設定密碼" required>
+            </div>
+            <div class="input-group">
+                <input type="password" id="confirmPassword" placeholder="確認密碼" required>
+            </div>
+            <button type="submit">註冊</button>
+            <div id="status-msg"></div>
+        </form>
+
+        <div class="footer-link">
+            已有帳號？ <a href="auth.html">立即登入</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const user = document.getElementById('regUsername').value;
+            const pass = document.getElementById('regPassword').value;
+            const confirmPass = document.getElementById('confirmPassword').value;
+            const statusMsg = document.getElementById('status-msg');
+
+            // 1. 檢查兩次密碼是否一致
+            if (pass !== confirmPass) {
+                showMsg("兩次密碼輸入不符");
+                return;
+            }
+
+            // 2. 模擬註冊邏輯：存入 localStorage
+            // 在真實應用中，這應該傳送到後端資料庫
+            const userData = { username: user, password: pass };
+            localStorage.setItem('registeredUser', JSON.stringify(userData));
+
+            // 3. 成功效果
+            const btn = document.querySelector('button');
+            btn.textContent = "註冊成功！";
+            btn.style.background = "#23d5ab";
+            btn.style.color = "#fff";
+            statusMsg.style.opacity = "0";
+
+            setTimeout(() => {
+                // 跳轉回登入頁
+                window.location.href = "auth.html";
+            }, 1200);
+        });
+
+        function showMsg(text) {
+            const statusMsg = document.getElementById('status-msg');
+            statusMsg.textContent = text;
+            statusMsg.style.opacity = "1";
+        }
+    </script>
+</body>
+</html>

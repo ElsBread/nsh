@@ -1,54 +1,139 @@
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幫戰數據分析</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* 指定的 OKLCH 顏色 */
+            --color-blue-900: oklch(37.9% .146 265.522);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', 'Microsoft JhengHei', sans-serif;
+        }
+
+        body {
+            background-color: #f4f4f9;
+            min-height: 100vh;
+        }
+
+        /* Header 樣式設定 */
+        .main-header {
+            background-color: var(--color-blue-900);
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            color: white;
+        }
+
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .logout-btn {
+            margin-left: 15px;
+            padding: 6px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            background: #ff4b2b;
+            color: white;
+            border: none;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: #e63e1c;
+            transform: scale(1.05);
+        }
+
+        .content-area {
+            padding: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
 <body>
-    <h1>你好</h1>
-    <div style="background: rgba(255,255,255,0.1); padding: 10px; color: white; text-align: right;">
-    <span>目前登入：<strong id="user-display">載入中...</strong></span>
-    <button onclick="handleLogout()" style="margin-left: 10px; padding: 5px 15px; border-radius: 15px; cursor: pointer; background: #ff4b2b; color: white; border: none;">
-        登出
-    </button>
-</div>
-</body>
 
-<script>
-    /* Trash Code for making github update faster*/
-    // 1. 初始化 (請確保 SB_KEY 是完整長度的那個)
-    const SB_URL = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
-    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
-    const _supabase = supabase.createClient(SB_URL, SB_KEY);
-
-    // 2. 判定登入狀態的主函數
-    async function checkLoginStatus() {
-        // 先檢查 LocalStorage 做初步判斷 (速度快)
-        const isLoggedIn = localStorage.getItem('isLoggedIn');
+    <header class="main-header">
+        <div class="header-title">幫戰數據分析</div>
         
-        // 向 Supabase 伺服器確認 Session 是否真的有效
-        const { data: { session }, error } = await _supabase.auth.getSession();
+        <div class="user-section">
+            <span>目前登入：<strong id="user-display">載入中...</strong></span>
+            <button onclick="handleLogout()" class="logout-btn">登出</button>
+        </div>
+    </header>
 
-        if (!isLoggedIn || !session) {
-            // 如果沒登入或 Session 過期，踢回登入頁
-            console.log("未登入，跳轉中...");
-            window.location.href = "auth.html";
-        } else {
-            // 登入成功，可以取得使用者資訊
-            const userEmail = session.user.email;
-            const username = userEmail.split('@')[0]; // 把 @gmail.com 削掉
+    <div class="content-area">
+        <h1>你好</h1>
+        <p>歡迎使用幫戰數據分析系統</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        /* Trash Code for making github update faster */
+        
+        // 1. 初始化 Supabase
+        const SB_URL = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        // 2. 判定登入狀態的主函數
+        async function checkLoginStatus() {
+            // 檢查 LocalStorage 初步判斷
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
             
-            console.log("歡迎回來:", username);
-            
-            // 如果你有個 ID 叫 'user-display' 的元素，可以顯示名字
-            if(document.getElementById('user-display')) {
-                document.getElementById('user-display').textContent = username;
+            // 向伺服器確認 Session
+            const { data: { session }, error } = await _supabase.auth.getSession();
+
+            if (!isLoggedIn || !session) {
+                console.log("未登入，跳轉中...");
+                window.location.href = "auth.html";
+            } else {
+                // 登入成功，處理顯示名稱
+                const userEmail = session.user.email;
+                // 從 Email 提取帳號名
+                const username = userEmail.split('@')[0];
+                
+                console.log("歡迎回來:", username);
+                
+                const displayEl = document.getElementById('user-display');
+                if(displayEl) {
+                    displayEl.textContent = username;
+                }
             }
         }
-    }
 
-    // 3. 登出函數
-    async function handleLogout() {
-        await _supabase.auth.signOut();
-        localStorage.removeItem('isLoggedIn');
-        window.location.href = "auth.html";
-    }
+        // 3. 登出函數
+        async function handleLogout() {
+            if(confirm("確定要登出嗎？")) {
+                await _supabase.auth.signOut();
+                localStorage.removeItem('isLoggedIn');
+                window.location.href = "auth.html";
+            }
+        }
 
-    // 執行檢查
-    checkLoginStatus();
-</script>
+        // 頁面載入時執行檢查
+        checkLoginStatus();
+    </script>
+</body>
+</html>

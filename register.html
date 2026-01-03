@@ -164,32 +164,34 @@
     <script>
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             e.preventDefault();
-
+        
             const user = document.getElementById('regUsername').value;
             const pass = document.getElementById('regPassword').value;
             const confirmPass = document.getElementById('confirmPassword').value;
             const statusMsg = document.getElementById('status-msg');
-
-            // 1. 檢查兩次密碼是否一致
+        
             if (pass !== confirmPass) {
                 showMsg("兩次密碼輸入不符");
                 return;
             }
-
-            // 2. 模擬註冊邏輯：存入 localStorage
-            // 在真實應用中，這應該傳送到後端資料庫
-            const userData = { username: user, password: pass };
-            localStorage.setItem('registeredUser', JSON.stringify(userData));
-
-            // 3. 成功效果
+        
+            // --- 建立您想要的 JSON 資料結構 ---
+            const userData = {
+                "Username": user,
+                "Password": pass,
+                "Last Login": new Date().toLocaleString() // 格式化時間
+            };
+        
+            // --- 模擬「儲存檔案」至本地 ---
+            // 我們以帳號作為 Key，這樣可以儲存多個使用者
+            localStorage.setItem(`user_${user}`, JSON.stringify(userData));
+        
+            // 成功效果
             const btn = document.querySelector('button');
             btn.textContent = "註冊成功！";
             btn.style.background = "#23d5ab";
-            btn.style.color = "#fff";
-            statusMsg.style.opacity = "0";
-
+            
             setTimeout(() => {
-                // 跳轉回登入頁
                 window.location.href = "auth.html";
             }, 1200);
         });

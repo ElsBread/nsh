@@ -15,15 +15,21 @@
             font-family: 'Poppins', sans-serif;
         }
 
-        /* --- 動態漸層背景 --- */
+        /* --- 背景與佈局 (依據您的要求修改) --- */
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            /* 您的原始設定 */
             min-height: 100vh;
-            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            
+            /* 指定的漸層配色 */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            
+            /* 為了保持時尚感，我加了一點點流動效果，但顏色嚴格鎖定在您指定的範圍內 */
+            background-size: 200% 200%;
+            animation: gradientMove 10s ease infinite;
         }
 
         @keyframes gradientBG {

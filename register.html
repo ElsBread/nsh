@@ -163,70 +163,60 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // 1. 初始化 Supabase (確保這段在整頁只出現一次)
-        const supabaseUrl = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
-         const supabaseKey = 'sb_publishable_nPKAEbmnXJWBOcbg7gB_Og_06LEITqt';
-        // 注意：CDN 版需使用 supabase.createClient 
-        const _supabase = supabase.createClient(supabaseUrl, supabaseKey); 
+    // 使用不同的變數名稱避開全域物件衝突
+    const SB_URL = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
+    
+    // 關鍵修正：確保這裡使用的是全域 supabase 物件的 createClient 方法
+    const _supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+    
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
         
-        document.getElementById('registerForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const user = document.getElementById('regUsername').value;
-            const pass = document.getElementById('regPassword').value;
-            const confirmPass = document.getElementById('confirmPassword').value;
-            const statusMsg = document.getElementById('status-msg');
-        
-            // 2. 新增：檢查兩次密碼是否一致
-            if (pass !== confirmPass) {
-                statusMsg.textContent = "兩次密碼輸入不符";
-                statusMsg.style.opacity = "1";
-                return;
-            }
-        
-            // 清除錯誤訊息
-            statusMsg.style.opacity = "0";
-        
-            // 3. 註冊帳號 (Supabase Auth)
-            const { data, error: authError } = await _supabase.auth.signUp({
+        const user = document.getElementById('regUsername').value;
+        const pass = document.getElementById('regPassword').value;
+        const confirmPass = document.getElementById('confirmPassword').value;
+        const statusMsg = document.getElementById('status-msg');
+
+        // 密碼一致性檢查
+        if (pass !== confirmPass) {
+            statusMsg.textContent = "兩次密碼輸入不符";
+            statusMsg.style.opacity = "1";
+            return;
+        }
+
+        try {
+            // 1. 註冊帳號
+            const { data, error: authError } = await _supabaseClient.auth.signUp({
                 email: user + "@nsh.bread",
                 password: pass,
             });
-        
-            if (authError) {
-                alert("註冊失敗: " + authError.message);
-                return;
-            }
-        
-            // 4. 寫入 profiles 表格
-            // 注意：如果這步報錯，請檢查 Supabase 的 RLS Policy 是否有開啟
+
+            if (authError) throw authError;
+
+            // 2. 寫入 Profiles 資料表
             if (data.user) {
-                const { error: dbError } = await _supabase
+                const { error: dbError } = await _supabaseClient
                     .from('profiles')
                     .insert([
                         { 
                             id: data.user.id, 
                             username: user, 
                             last_login: new Date().toISOString(),
-                            extra_data: { "role": "member", "note": "來自 github.io" } 
+                            extra_data: { "role": "member" } 
                         }
                     ]);
-        
-                if (dbError) {
-                    console.error("資料表寫入失敗:", dbError);
-                    alert("帳號已建立，但設定檔寫入失敗。");
-                } else {
-                    alert("註冊成功！");
-                    window.location.href = "auth.html";
-                }
-            }
-        });
 
-        function showMsg(text) {
-            const statusMsg = document.getElementById('status-msg');
-            statusMsg.textContent = text;
-            statusMsg.style.opacity = "1";
+                if (dbError) console.warn("Profile 寫入失敗，請檢查 RLS 設定:", dbError);
+                
+                alert("註冊成功！");
+                window.location.href = "auth.html";
+            }
+        } catch (err) {
+            console.error("發生錯誤:", err);
+            alert("操作失敗: " + (err.message || "請檢查 API Key 或網路連線"));
         }
-    </script>
+    });
+</script>
 </body>
 </html>

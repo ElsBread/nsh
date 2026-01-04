@@ -223,7 +223,7 @@
             // 建議增加 tesseract_char_whitelist 來限制數字辨識，若只需數字的話
             const result = await Tesseract.recognize(
                 processedImage,
-                'chi_tra+eng', 
+                'chi_tra+chi_sim+eng', 
                 { 
                     logger: m => {
                         if(m.status === 'recognizing text') {

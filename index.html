@@ -159,33 +159,66 @@
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // --- Hugging Face API 設定 ---
-        const HF_TOKEN = "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";
-        // 推薦模型：pix2text (專攻中英混合與複雜排版)
-        const HF_API_URL = "https://api-inference.huggingface.co/models/breezedeus/pix2text-mfr";
-
+        // --- 修改後的 Hugging Face OCR 辨識函數 ---
         async function queryOCR(imageBlob) {
-            // 方案 A：更換成更通用的模型 API 路徑
-            const HF_API_URL = "https://corsproxy.io/?https://api-inference.huggingface.co/models/microsoft/trocr-base-printed";
+            // 這裡換成最穩定的路徑，不經過外部 Proxy 避免 410 錯誤
+            const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/trocr-base-printed";
+            const HF_TOKEN = "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";
         
             const response = await fetch(HF_API_URL, {
                 headers: { 
-                    "Authorization": `Bearer ${HF_TOKEN}`,
-                    // 移除 Content-Type，讓瀏覽器自動處理 Blob 封裝，有助於避開 CORS 嚴格檢查
+                    "Authorization": `Bearer ${HF_TOKEN}`
+                    // 注意：不要寫 Content-Type，讓瀏覽器自動處理檔案流
                 },
                 method: "POST",
                 body: imageBlob,
             });
         
-            // 如果還是失敗，嘗試方案 B：使用不同的 Headers 策略
+            // 檢查是否成功
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || "API 請求失敗");
+                const errorText = await response.text();
+                console.error("API 錯誤內容:", errorText);
+                
+                // 如果遇到 503 代表模型正在載入
+                if (response.status === 503) {
+                    throw new Error("AI 模型啟動中，請等候 20 秒後再次嘗試...");
+                }
+                throw new Error(`伺服器回應錯誤 (${response.status})`);
             }
             
             const result = await response.json();
-            return result.generated_text || result[0]?.generated_text || result.text || JSON.stringify(result);
+            
+            // 處理不同的回傳格式
+            if (Array.isArray(result) && result[0]?.generated_text) {
+                return result[0].generated_text;
+            } else if (result.generated_text) {
+                return result.generated_text;
+            }
+            return JSON.stringify(result);
         }
+        
+        // --- 事件監聽器部分保持一致 ---
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+        
+            statusText.textContent = "雲端辨識中...";
+            spinner.style.display = "block";
+            
+            try {
+                const resultText = await queryOCR(file);
+                spinner.style.display = "none";
+                statusText.textContent = "辨識完成";
+                alert("【AI 辨識結果】\n\n" + resultText);
+            } catch (err) {
+                console.error("OCR 錯誤細節:", err);
+                alert(err.message);
+                spinner.style.display = "none";
+                statusText.textContent = "辨識失敗";
+            } finally {
+                fileInput.value = '';
+            }
+        });
 
         const fileInput = document.getElementById('file-input');
         const statusText = document.getElementById('status');

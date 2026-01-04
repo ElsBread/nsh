@@ -187,7 +187,7 @@
                         // 2. 二值化：亮度大於 128 變白，小於變黑
                         // 如果你的截圖字體是深色背景淺色字，可以反轉這個值
                         const threshold = 140; // 門檻值，可視情況調整
-                        const color = brightness > threshold ? 255 : 0;
+                        const color = brightness > threshold ? 0 : 255;
                         
                         data[i] = data[i+1] = data[i+2] = color;
                     }

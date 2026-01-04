@@ -8,8 +8,8 @@
     
     <style>
         :root {
-            /* 指定的 OKLCH 顏色 */
             --color-blue-900: #001529;
+            --primary-color: #4a90e2;
         }
 
         * {
@@ -22,9 +22,10 @@
         body {
             background-color: #f4f4f9;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Header 樣式設定 */
         .main-header {
             background-color: var(--color-blue-900);
             height: 60px;
@@ -34,10 +35,11 @@
             padding: 0 25px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             color: white;
+            flex-shrink: 0;
         }
 
         .header-title {
-            font-size: 1.2rem;
+            font-size: 1.25rem;
             font-weight: 700;
             letter-spacing: 1px;
         }
@@ -57,73 +59,169 @@
             color: white;
             border: none;
             font-weight: 500;
-            transition: all 0.2s;
+            transition: 0.2s;
         }
 
-        .logout-btn:hover {
-            background: #e63e1c;
-            transform: scale(1.05);
+        /* 居中上傳區塊 */
+        .upload-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
 
-        .content-area {
+        .upload-card {
+            background: white;
             padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
             text-align: center;
+            max-width: 400px;
+            width: 100%;
         }
+
+        .upload-btn {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        .upload-btn:hover {
+            background-color: #357abd;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.3);
+        }
+
+        #file-input {
+            display: none; /* 隱藏原生輸入框 */
+        }
+
+        .status-text {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* 載入中動畫樣式 */
+        .loading-spinner {
+            display: none;
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <header class="main-header">
         <div class="header-title">幫戰數據分析</div>
-        
         <div class="user-section">
             <span>目前登入：<strong id="user-display">載入中...</strong></span>
             <button onclick="handleLogout()" class="logout-btn">登出</button>
         </div>
     </header>
 
-    <div class="content-area">
-        <h1>你好</h1>
-        <p>歡迎使用幫戰數據分析系統</p>
+    <div class="upload-container">
+        <div class="upload-card">
+            <h2 style="margin-bottom: 10px;">數據辨識</h2>
+            <p style="color: #888;">請上傳包含幫戰數據的圖片</p>
+            
+            <div class="loading-spinner" id="spinner"></div>
+            
+            <label for="file-input" class="upload-btn">
+                選擇圖片並開始辨識
+            </label>
+            <input type="file" id="file-input" accept="image/*">
+            
+            <div id="status" class="status-text">待命</div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
 
     <script>
-        /* Trash Code for making github update faster */
-        
-        // 1. 初始化 Supabase
         const SB_URL = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // 2. 判定登入狀態的主函數
+        // 登入檢查邏輯
         async function checkLoginStatus() {
-            // 檢查 LocalStorage 初步判斷
             const isLoggedIn = localStorage.getItem('isLoggedIn');
-            
-            // 向伺服器確認 Session
-            const { data: { session }, error } = await _supabase.auth.getSession();
-
+            const { data: { session } } = await _supabase.auth.getSession();
             if (!isLoggedIn || !session) {
-                console.log("未登入，跳轉中...");
                 window.location.href = "auth.html";
             } else {
-                // 登入成功，處理顯示名稱
-                const userEmail = session.user.email;
-                // 從 Email 提取帳號名
-                const username = userEmail.split('@')[0];
-                
-                console.log("歡迎回來:", username);
-                
-                const displayEl = document.getElementById('user-display');
-                if(displayEl) {
-                    displayEl.textContent = username;
-                }
+                document.getElementById('user-display').textContent = session.user.email.split('@')[0];
             }
         }
 
-        // 3. 登出函數
+        // --- 圖片識別核心功能 ---
+        const fileInput = document.getElementById('file-input');
+        const statusText = document.getElementById('status');
+        const spinner = document.getElementById('spinner');
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // UI 狀態更新
+            statusText.textContent = "正在處理圖片中...";
+            spinner.style.display = "block";
+            
+            try {
+                // 使用 Tesseract.js 辨識 (設定包含繁體中文與英文/數字)
+                const result = await Tesseract.recognize(
+                    file,
+                    'chi_tra+eng', // 語系設定：繁中 + 英數
+                    { 
+                        logger: m => {
+                            if(m.status === 'recognizing text') {
+                                statusText.textContent = `辨識進度: ${Math.round(m.progress * 100)}%`;
+                            }
+                        }
+                    }
+                );
+
+                // 輸出結果
+                const text = result.data.text.trim();
+                spinner.style.display = "none";
+                statusText.textContent = "辨識完成";
+
+                if (text) {
+                    alert("【識別結果輸出】\n\n" + text);
+                } else {
+                    alert("未能從圖片中識別出任何文字。");
+                }
+
+            } catch (err) {
+                console.error("OCR 錯誤:", err);
+                alert("辨識過程發生錯誤，請重試。");
+                spinner.style.display = "none";
+                statusText.textContent = "錯誤";
+            } finally {
+                // 清空 input 讓使用者可以重複選同一張圖測試
+                fileInput.value = '';
+            }
+        });
+
+        // 登出
         async function handleLogout() {
             if(confirm("確定要登出嗎？")) {
                 await _supabase.auth.signOut();
@@ -132,7 +230,6 @@
             }
         }
 
-        // 頁面載入時執行檢查
         checkLoginStatus();
     </script>
 </body>

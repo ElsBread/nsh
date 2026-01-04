@@ -165,22 +165,25 @@
         const HF_API_URL = "https://api-inference.huggingface.co/models/breezedeus/pix2text-mfr";
 
         async function queryOCR(imageBlob) {
+            // 方案 A：更換成更通用的模型 API 路徑
+            const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/trocr-base-printed";
+        
             const response = await fetch(HF_API_URL, {
                 headers: { 
                     "Authorization": `Bearer ${HF_TOKEN}`,
-                    "Content-Type": "application/octet-stream"
+                    // 移除 Content-Type，讓瀏覽器自動處理 Blob 封裝，有助於避開 CORS 嚴格檢查
                 },
                 method: "POST",
                 body: imageBlob,
             });
-
+        
+            // 如果還是失敗，嘗試方案 B：使用不同的 Headers 策略
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || "API 請求失敗");
             }
             
             const result = await response.json();
-            // pix2text 回傳通常包含 text 欄位，視模型而定
             return result.generated_text || result[0]?.generated_text || result.text || JSON.stringify(result);
         }
 

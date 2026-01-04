@@ -161,7 +161,7 @@
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
     const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-    // --- 圖片預處理函數：自動變黑白 ---
+    // --- 進階影像預處理：針對複雜文字與細小筆畫優化 ---
     async function preprocessImage(imageFile) {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -171,29 +171,37 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // 設定畫布大小
-                    canvas.width = img.width;
-                    canvas.height = img.height;
+                    // 【優化 1】放大圖片：讓 OCR 更好捕捉複雜筆畫的間隙
+                    const scale = 2; 
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
                     
-                    // 1. 先轉成灰階
-                    ctx.drawImage(img, 0, 0);
+                    // 使用高品質縮放
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const data = imageData.data;
                     
+                    // 【優化 2】增強對比與二值化
                     for (let i = 0; i < data.length; i += 4) {
-                        // 使用加權公式計算亮度
-                        const brightness = 0.34 * data[i] + 0.5 * data[i + 1] + 0.16 * data[i + 2];
+                        const r = data[i];
+                        const g = data[i+1];
+                        const b = data[i+2];
                         
-                        // 2. 二值化：亮度大於 128 變白，小於變黑
-                        // 如果你的截圖字體是深色背景淺色字，可以反轉這個值
-                        const threshold = 140; // 門檻值，可視情況調整
-                        const color = brightness > threshold ? 0 : 255;
+                        // 灰階權重調整，稍微提升對細節的敏感度
+                        let brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+                        
+                        // 針對「醬」這種筆畫密集的字，門檻值要稍微提高
+                        // 確保白底黑字是 OCR 最愛的格式
+                        const threshold = 150; 
+                        const color = brightness > threshold ? 255 : 0;
                         
                         data[i] = data[i+1] = data[i+2] = color;
                     }
                     
                     ctx.putImageData(imageData, 0, 0);
-                    // 導出處理後的圖片 Base64
                     resolve(canvas.toDataURL('image/png'));
                 };
                 img.src = event.target.result;
@@ -214,55 +222,13 @@
         spinner.style.display = "block";
         
         try {
-            // --- 進階影像預處理：針對複雜文字與細小筆畫優化 ---
-            async function preprocessImage(imageFile) {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            const ctx = canvas.getContext('2d');
-                            
-                            // 【優化 1】放大圖片：讓 OCR 更好捕捉複雜筆畫的間隙
-                            const scale = 2; 
-                            canvas.width = img.width * scale;
-                            canvas.height = img.height * scale;
-                            
-                            // 使用高品質縮放
-                            ctx.imageSmoothingEnabled = true;
-                            ctx.imageSmoothingQuality = 'high';
-                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            // 步驟 1: 影像預處理 (黑白化)
+            const processedImage = await preprocessImage(file);
             
-                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                            const data = imageData.data;
-                            
-                            // 【優化 2】增強對比與二值化
-                            for (let i = 0; i < data.length; i += 4) {
-                                const r = data[i];
-                                const g = data[i+1];
-                                const b = data[i+2];
-                                
-                                // 灰階權重調整，稍微提升對細節的敏感度
-                                let brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-                                
-                                // 針對「醬」這種筆畫密集的字，門檻值要稍微提高
-                                // 確保白底黑字是 OCR 最愛的格式
-                                const threshold = 150; 
-                                const color = brightness > threshold ? 255 : 0;
-                                
-                                data[i] = data[i+1] = data[i+2] = color;
-                            }
-                            
-                            ctx.putImageData(imageData, 0, 0);
-                            resolve(canvas.toDataURL('image/png'));
-                        };
-                        img.src = event.target.result;
-                    };
-                    reader.readAsDataURL(imageFile);
-                });
-            }
-            
+            statusText.textContent = "正在辨識文字...";
+
+            // 步驟 2: 送入 OCR 辨識
+            // 建議增加 tesseract_char_whitelist 來限制數字辨識，若只需數字的話
             // 修改辨識段落，加入關鍵設定
             const result = await Tesseract.recognize(
                 processedImage,

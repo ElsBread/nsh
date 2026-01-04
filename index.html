@@ -189,7 +189,7 @@
                 // 使用 Tesseract.js 辨識 (設定包含繁體中文與英文/數字)
                 const result = await Tesseract.recognize(
                     file,
-                    'chi_tra+eng', // 語系設定：繁中 + 英數
+                    'eng', // 語系設定：繁中 + 英數
                     { 
                         logger: m => {
                             if(m.status === 'recognizing text') {

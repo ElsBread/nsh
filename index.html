@@ -166,7 +166,7 @@
 
         async function queryOCR(imageBlob) {
             // 方案 A：更換成更通用的模型 API 路徑
-            const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/trocr-base-printed";
+            const HF_API_URL = "https://corsproxy.io/?https://api-inference.huggingface.co/models/microsoft/trocr-base-printed";
         
             const response = await fetch(HF_API_URL, {
                 headers: { 

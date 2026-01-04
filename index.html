@@ -159,96 +159,58 @@
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // --- 修改後的 Hugging Face OCR 辨識函數 ---
-        async function queryOCR(imageBlob) {
-            // 這裡換成最穩定的路徑，不經過外部 Proxy 避免 410 錯誤
-            const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/trocr-base-printed";
-            const HF_TOKEN = "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";
-        
-            const response = await fetch(HF_API_URL, {
-                headers: { 
-                    "Authorization": `Bearer ${HF_TOKEN}`
-                    // 注意：不要寫 Content-Type，讓瀏覽器自動處理檔案流
-                },
-                method: "POST",
-                body: imageBlob,
-            });
-        
-            // 檢查是否成功
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("API 錯誤內容:", errorText);
-                
-                // 如果遇到 503 代表模型正在載入
-                if (response.status === 503) {
-                    throw new Error("AI 模型啟動中，請等候 20 秒後再次嘗試...");
-                }
-                throw new Error(`伺服器回應錯誤 (${response.status})`);
-            }
-            
-            const result = await response.json();
-            
-            // 處理不同的回傳格式
-            if (Array.isArray(result) && result[0]?.generated_text) {
-                return result[0].generated_text;
-            } else if (result.generated_text) {
-                return result.generated_text;
-            }
-            return JSON.stringify(result);
-        }
-        
-        // --- 事件監聽器部分保持一致 ---
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-        
-            statusText.textContent = "雲端辨識中...";
-            spinner.style.display = "block";
-            
-            try {
-                const resultText = await queryOCR(file);
-                spinner.style.display = "none";
-                statusText.textContent = "辨識完成";
-                alert("【AI 辨識結果】\n\n" + resultText);
-            } catch (err) {
-                console.error("OCR 錯誤細節:", err);
-                alert(err.message);
-                spinner.style.display = "none";
-                statusText.textContent = "辨識失敗";
-            } finally {
-                fileInput.value = '';
-            }
-        });
+        const HF_TOKEN = "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";
+        const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/trocr-base-printed";
 
+        // 2. 獲取 DOM 元素 (確保在監聽事件之前初始化)
         const fileInput = document.getElementById('file-input');
         const statusText = document.getElementById('status');
         const spinner = document.getElementById('spinner');
 
+        // 3. OCR 請求函數
+        async function queryOCR(imageBlob) {
+            const response = await fetch(HF_API_URL, {
+                headers: { "Authorization": `Bearer ${HF_TOKEN}` },
+                method: "POST",
+                body: imageBlob,
+            });
+
+            const contentType = response.headers.get("content-type");
+            if (!response.ok) {
+                // 如果回傳不是 JSON (例如 HTML 錯誤頁面)，則直接抓文字
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    const errorData = await response.json();
+                    if (response.status === 503) throw new Error("模型啟動中，請等候 20 秒再次嘗試");
+                    throw new Error(errorData.error || "API 錯誤");
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`伺服器錯誤 (${response.status})`);
+                }
+            }
+            
+            return await response.json();
+        }
+        
+        // 4. 事件監聽
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            statusText.textContent = "正在傳送至雲端 AI 辨識...";
+            statusText.textContent = "正在連線 AI 辨識...";
             spinner.style.display = "block";
             
             try {
-                // 雲端模型不需要我們在前端做複雜的預處理，直接傳送原圖效果通常最好
-                const resultText = await queryOCR(file);
-
+                const result = await queryOCR(file);
                 spinner.style.display = "none";
                 statusText.textContent = "辨識完成";
 
-                // 彈出結果
-                alert("【AI 辨識結果輸出】\n\n" + resultText);
+                // 處理 TrOCR 常見的回傳格式 [{generated_text: "..."}]
+                const finalStr = Array.isArray(result) ? result[0].generated_text : (result.generated_text || JSON.stringify(result));
+                alert("【AI 辨識結果】\n\n" + finalStr);
 
             } catch (err) {
-                console.error("OCR 錯誤:", err);
-                // 處理模型載入中的特殊情況 (503 錯誤)
-                if (err.message.includes("loading")) {
-                    alert("AI 模型正在啟動中，請等候約 20 秒後再次嘗試。");
-                } else {
-                    alert("辨識失敗：" + err.message);
-                }
+                console.error("OCR Error:", err);
+                alert(err.message);
                 spinner.style.display = "none";
                 statusText.textContent = "辨識失敗";
             } finally {

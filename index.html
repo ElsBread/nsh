@@ -156,81 +156,122 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
 
-    <script>
-        const SB_URL = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
-        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
-        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+<script>
+    const SB_URL = 'https://ofuxzhfeqvihcgiucopx.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mdXh6aGZlcXZpaGNnaXVjb3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc0NjQ4ODEsImV4cCI6MjA4MzA0MDg4MX0.pYDTBag5NgmUFxOzABWIytnMtUv-QloY31JYZaoZrmk-n';
+    const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // 登入檢查邏輯
-        async function checkLoginStatus() {
-            const isLoggedIn = localStorage.getItem('isLoggedIn');
-            const { data: { session } } = await _supabase.auth.getSession();
-            if (!isLoggedIn || !session) {
-                window.location.href = "auth.html";
-            } else {
-                document.getElementById('user-display').textContent = session.user.email.split('@')[0];
-            }
-        }
+    // --- 圖片預處理函數：自動變黑白 ---
+    async function preprocessImage(imageFile) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // 設定畫布大小
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    // 1. 先轉成灰階
+                    ctx.drawImage(img, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    
+                    for (let i = 0; i < data.length; i += 4) {
+                        // 使用加權公式計算亮度
+                        const brightness = 0.34 * data[i] + 0.5 * data[i + 1] + 0.16 * data[i + 2];
+                        
+                        // 2. 二值化：亮度大於 128 變白，小於變黑
+                        // 如果你的截圖字體是深色背景淺色字，可以反轉這個值
+                        const threshold = 140; // 門檻值，可視情況調整
+                        const color = brightness > threshold ? 255 : 0;
+                        
+                        data[i] = data[i+1] = data[i+2] = color;
+                    }
+                    
+                    ctx.putImageData(imageData, 0, 0);
+                    // 導出處理後的圖片 Base64
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(imageFile);
+        });
+    }
 
-        // --- 圖片識別核心功能 ---
-        const fileInput = document.getElementById('file-input');
-        const statusText = document.getElementById('status');
-        const spinner = document.getElementById('spinner');
+    const fileInput = document.getElementById('file-input');
+    const statusText = document.getElementById('status');
+    const spinner = document.getElementById('spinner');
 
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-            // UI 狀態更新
-            statusText.textContent = "正在處理圖片中...";
-            spinner.style.display = "block";
+        statusText.textContent = "影像強化處理中...";
+        spinner.style.display = "block";
+        
+        try {
+            // 步驟 1: 影像預處理 (黑白化)
+            const processedImage = await preprocessImage(file);
             
-            try {
-                // 使用 Tesseract.js 辨識 (設定包含繁體中文與英文/數字)
-                const result = await Tesseract.recognize(
-                    file,
-                    'eng', // 語系設定：繁中 + 英數
-                    { 
-                        logger: m => {
-                            if(m.status === 'recognizing text') {
-                                statusText.textContent = `辨識進度: ${Math.round(m.progress * 100)}%`;
-                            }
+            statusText.textContent = "正在辨識文字...";
+
+            // 步驟 2: 送入 OCR 辨識
+            // 建議增加 tesseract_char_whitelist 來限制數字辨識，若只需數字的話
+            const result = await Tesseract.recognize(
+                processedImage,
+                'chi_tra+eng', 
+                { 
+                    logger: m => {
+                        if(m.status === 'recognizing text') {
+                            statusText.textContent = `辨識進度: ${Math.round(m.progress * 100)}%`;
                         }
                     }
-                );
-
-                // 輸出結果
-                const text = result.data.text.trim();
-                spinner.style.display = "none";
-                statusText.textContent = "辨識完成";
-
-                if (text) {
-                    alert("【識別結果輸出】\n\n" + text);
-                } else {
-                    alert("未能從圖片中識別出任何文字。");
                 }
+            );
 
-            } catch (err) {
-                console.error("OCR 錯誤:", err);
-                alert("辨識過程發生錯誤，請重試。");
-                spinner.style.display = "none";
-                statusText.textContent = "錯誤";
-            } finally {
-                // 清空 input 讓使用者可以重複選同一張圖測試
-                fileInput.value = '';
-            }
-        });
+            const text = result.data.text.trim();
+            spinner.style.display = "none";
+            statusText.textContent = "辨識完成";
 
-        // 登出
-        async function handleLogout() {
-            if(confirm("確定要登出嗎？")) {
-                await _supabase.auth.signOut();
-                localStorage.removeItem('isLoggedIn');
-                window.location.href = "auth.html";
+            if (text) {
+                // 彈出結果
+                alert("【強化辨識結果】\n\n" + text);
+            } else {
+                alert("辨識失敗，請嘗試更清晰的截圖。");
             }
+
+        } catch (err) {
+            console.error("OCR 錯誤:", err);
+            alert("處理失敗，錯誤訊息：" + err.message);
+            spinner.style.display = "none";
+        } finally {
+            fileInput.value = '';
         }
+    });
 
-        checkLoginStatus();
-    </script>
+    async function checkLoginStatus() {
+        const isLoggedIn = localStorage.getItem('isLoggedIn');
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!isLoggedIn || !session) {
+            window.location.href = "auth.html";
+        } else {
+            document.getElementById('user-display').textContent = session.user.email.split('@')[0];
+        }
+    }
+
+    async function handleLogout() {
+        if(confirm("確定要登出嗎？")) {
+            await _supabase.auth.signOut();
+            localStorage.removeItem('isLoggedIn');
+            window.location.href = "auth.html";
+        }
+    }
+
+    checkLoginStatus();
+</script>
 </body>
 </html>
